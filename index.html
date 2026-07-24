@@ -1097,7 +1097,7 @@
       var lat = (typeof d.latitude === 'number') ? d.latitude.toFixed(6) : 'n/a';
       var lon = (typeof d.longitude === 'number') ? d.longitude.toFixed(6) : 'n/a';
       var alt = (typeof d.altitude === 'number') ? d.altitude.toFixed(1) + ' m' : 'n/a';
-      var spd = (typeof d.ground_speed_kmh === 'number') ? d.ground_speed_kmh.toFixed(1) + ' km/h' : 'n/a';
+      var spd = (typeof d.ground_speed_kmh === 'number') ? (d.ground_speed_kmh * 0.621371).toFixed(1) + ' mph' : 'n/a';
       var hdg = (typeof d.heading === 'number') ? d.heading.toFixed(0) + ' deg' : 'n/a';
       var hdop = (typeof d.hdop === 'number') ? d.hdop.toFixed(1) : 'n/a';
       var displayName = d.teamviewer_alias || host;
@@ -1109,9 +1109,9 @@
       var summaryLine = expanded ? '' : (
           '<div class="card-summary">' +
             '<span class="' + fixCls + '">Fix: ' + fix + '</span>' +
-            '<span>Sats: ' + (d.satellites != null ? d.satellites : 0) + '</span>' +
+            '<span>Version: ' + fmtVersion(d.fleet_version) + '</span>' +
             '<span>Speed: ' + spd + '</span>' +
-            '<span>' + (d.spoofer_running ? 'Spoofer OK' : 'Spoofer Stopped') + '</span>' +
+            '<span>Last Report: ' + lastSeenText(d.lastSeen) + '</span>' +
             warnFlags +
           '</div>'
         );
