@@ -212,22 +212,29 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
     gap: 12px;
+    align-items: start;
   }
   .card { border: 1px solid var(--panel-line); background: var(--asphalt-2); }
   .card.offline { opacity: 0.5; }
-  .card-head {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--panel-line);
-  }
+  .card-head { padding: 8px 12px; cursor: pointer; user-select: none; }
+  .card-head:hover { background: rgba(255,255,255,0.02); }
+  .card-head-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .card-head .dot { width: 7px; height: 7px; background: var(--paper-dim); flex-shrink: 0; }
   .card.online .dot { background: var(--ok); box-shadow: 0 0 5px var(--ok); }
   .card.offline .dot { background: var(--hazard); }
-  .card-head .host { font-family: var(--sign); font-weight: 700; font-size: 13px; letter-spacing: 0.3px; }
+  .card-head .host {
+    font-family: var(--sign);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
   .card-head .badge {
     margin-left: auto;
+    flex-shrink: 0;
     font-family: var(--sign);
     font-size: 10px;
     font-weight: 600;
@@ -240,8 +247,38 @@
   .badge.frg { color: var(--ok); border-color: var(--ok); }
   .badge.trans { color: var(--amber); border-color: var(--amber); }
   .badge.ls { color: var(--steel); border-color: var(--steel-dim); }
+  .card-head .chevron { flex-shrink: 0; color: var(--paper-dim); font-size: 10px; }
 
-  .card-body { padding: 8px 12px 10px; }
+  .remote-btn {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    background: var(--amber);
+    color: #14161a;
+    border: none;
+    font-family: var(--sign);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    text-align: center;
+    text-decoration: none;
+    padding: 7px 8px;
+    cursor: pointer;
+    box-shadow: 0 2px 0 rgba(0,0,0,0.35);
+  }
+  .remote-btn:hover { background: #ffc233; }
+  .remote-btn:active { box-shadow: none; transform: translateY(1px); }
+  .remote-btn.disabled {
+    background: transparent;
+    border: 1px solid var(--panel-line);
+    color: var(--paper-dim);
+    box-shadow: none;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .card-body { padding: 8px 12px 10px; border-top: 1px solid var(--panel-line); }
   .row {
     display: flex;
     justify-content: space-between;
@@ -997,16 +1034,25 @@
            '<span class="v' + (cls ? ' ' + cls : '') + '">' + v + '</span></div>';
   }
 
-  function remoteRow(d) {
+  function remoteButton(d) {
     if (!d.teamviewer_id) {
-      return '<div class="row"><span class="k">Remote In</span><span class="v" style="color:var(--paper-dim)">Not Available</span></div>';
+      return '<span class="remote-btn disabled">Remote In Not Available</span>';
     }
     var href = 'https://start.teamviewer.com/' + encodeURIComponent(d.teamviewer_id);
-    var label = d.teamviewer_alias || ('ID ' + d.teamviewer_id);
-    return '<div class="row"><span class="k">' + label + '</span><span class="v">' +
-      '<a class="remote-link" href="' + href + '" target="_blank" rel="noopener noreferrer">Connect via TeamViewer</a>' +
-      '</span></div>';
+    return '<a class="remote-btn" href="' + href + '" target="_blank" rel="noopener noreferrer">Connect via TeamViewer</a>';
   }
+
+  var expandedHosts = {}; // hostname -> bool, default falsy = collapsed
+
+  gridEl.addEventListener('click', function (e) {
+    if (e.target.closest('.remote-btn')) return; // let the link/button act normally
+    var head = e.target.closest('.card-head');
+    if (!head) return;
+    var card = head.closest('.card');
+    var host = card.getAttribute('data-host');
+    expandedHosts[host] = !expandedHosts[host];
+    render();
+  });
 
   function render() {
     var hosts = Object.keys(laptops).sort();
@@ -1023,6 +1069,7 @@
     gridEl.innerHTML = hosts.map(function (host) {
       var d = laptops[host] || {};
       var online = !!d.online;
+      var expanded = !!expandedHosts[host];
       var badge = labelBadge(d.label_state);
       var fix = d.nmea_fix || 'No Data';
       var fixCls = fix === 'Valid' ? 'green' : fix === 'No Fix' ? 'amber' : 'red';
@@ -1034,14 +1081,9 @@
       var spd = (typeof d.ground_speed_kmh === 'number') ? d.ground_speed_kmh.toFixed(1) + ' km/h' : 'n/a';
       var hdg = (typeof d.heading === 'number') ? d.heading.toFixed(0) + ' deg' : 'n/a';
       var hdop = (typeof d.hdop === 'number') ? d.hdop.toFixed(1) : 'n/a';
+      var displayName = d.teamviewer_alias || host;
 
-      return (
-        '<div class="card ' + (online ? 'online' : 'offline') + '">' +
-          '<div class="card-head">' +
-            '<span class="dot"></span>' +
-            '<span class="host">' + host + '</span>' +
-            '<span class="badge ' + badge.cls + '">' + badge.text + '</span>' +
-          '</div>' +
+      var body = !expanded ? '' : (
           '<div class="card-body">' +
           row('Spoofer Process', d.spoofer_running ? ('Running, PID ' + d.spoofer_pid) : 'Stopped', procCls) +
           row('Port 12175', d.port_listening ? 'Listening' : 'Not Listening', portCls) +
@@ -1063,11 +1105,23 @@
           row('Last Reboot', relativeFromIso(d.last_boot)) +
           row('Restart Pending', d.update_available ? 'Yes' : 'No', d.update_available ? 'amber' : undefined) +
           row('Updates Paused', d.update_paused ? 'Yes' : 'No', d.update_paused ? 'red' : undefined) +
-          '<div class="sec-title">Remote</div>' +
-          remoteRow(d) +
           '<div class="sec-title">Relay</div>' +
           row('Last Report', lastSeenText(d.lastSeen)) +
+          '</div>'
+        );
+
+      return (
+        '<div class="card ' + (online ? 'online' : 'offline') + '" data-host="' + host + '">' +
+          '<div class="card-head">' +
+            '<div class="card-head-top">' +
+              '<span class="dot"></span>' +
+              '<span class="host">' + displayName + '</span>' +
+              '<span class="badge ' + badge.cls + '">' + badge.text + '</span>' +
+              '<span class="chevron">' + (expanded ? '▾' : '▸') + '</span>' +
+            '</div>' +
+            remoteButton(d) +
           '</div>' +
+          body +
         '</div>'
       );
     }).join('');
