@@ -1124,7 +1124,7 @@
       if (d.update_available) warnFlags += '<span class="amber">Restart Pending</span>';
       if (d.update_paused) warnFlags += '<span class="red">Updates Paused</span>';
 
-      var summaryLine = expanded ? '' : (
+      var summaryLine = (
           '<div class="card-summary">' +
             '<span class="' + fixCls + '">Fix: ' + fix + '</span>' +
             '<span>Version: ' + fmtVersion(d.fleet_version) + '</span>' +
