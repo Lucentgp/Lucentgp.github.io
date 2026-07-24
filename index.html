@@ -1131,9 +1131,12 @@
     if (!d.teamviewer_id) {
       return '<span class="remote-btn disabled">Remote In Not Available</span>';
     }
-    if (d.teamviewer_online && d.teamviewer_online !== 'Online') {
-      return '<span class="remote-btn disabled">TeamViewer Offline</span>';
-    }
+    // TeamViewer's own online_state is unreliable/laggy (confirmed against
+    // laptops that were actually reachable while it read "Offline", and
+    // laptops that were actually offline while it read "Online") -- not
+    // trustworthy enough to gate the button on, so it's left out of this
+    // check entirely. Our own relay's "online" above is real-time and
+    // accurate, that's the only gate that matters here.
     var href = 'https://start.teamviewer.com/' + encodeURIComponent(d.teamviewer_id);
     return '<a class="remote-btn" href="' + href + '" target="_blank" rel="noopener noreferrer">Connect via TeamViewer</a>';
   }
