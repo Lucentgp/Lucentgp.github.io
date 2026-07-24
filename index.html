@@ -1124,8 +1124,14 @@
   }
 
   function remoteButton(d) {
+    if (!d.online) {
+      return '<span class="remote-btn disabled">Laptop Offline</span>';
+    }
     if (!d.teamviewer_id) {
       return '<span class="remote-btn disabled">Remote In Not Available</span>';
+    }
+    if (d.teamviewer_online && d.teamviewer_online !== 'Online') {
+      return '<span class="remote-btn disabled">TeamViewer Offline</span>';
     }
     var href = 'https://start.teamviewer.com/' + encodeURIComponent(d.teamviewer_id);
     return '<a class="remote-btn" href="' + href + '" target="_blank" rel="noopener noreferrer">Connect via TeamViewer</a>';
