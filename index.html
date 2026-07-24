@@ -285,6 +285,16 @@
   .card-summary .green { color: var(--ok); }
   .card-summary .amber { color: var(--amber); }
   .card-summary .red { color: var(--hazard); font-weight: 700; }
+  .card-warnings {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    margin-top: 4px;
+    font-size: 10.5px;
+    min-height: 14px;
+  }
+  .card-warnings .amber { color: var(--amber); }
+  .card-warnings .red { color: var(--hazard); font-weight: 700; }
 
   .remote-btn {
     display: block;
@@ -1218,8 +1228,8 @@
             '<span>Version: ' + fmtVersion(d.fleet_version) + '</span>' +
             '<span>Speed: ' + spd + '</span>' +
             '<span>Last Report: ' + lastSeenText(d.lastSeen) + '</span>' +
-            warnFlags +
-          '</div>'
+          '</div>' +
+          '<div class="card-warnings">' + warnFlags + '</div>'
         );
 
       var body = (
