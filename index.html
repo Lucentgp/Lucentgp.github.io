@@ -34,7 +34,7 @@
     font-family: var(--mono);
     min-height: 100vh;
   }
-  .wrap { max-width: 1280px; margin: 0 auto; padding: 14px 24px 30px; }
+  .wrap { max-width: 100%; margin: 0 auto; padding: 14px 32px 30px; }
 
   /* ── Header + tab nav ── */
   header {
@@ -210,7 +210,7 @@
   #summary { font-size: 11px; color: var(--paper-dim); }
   #grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
     gap: 12px;
     align-items: start;
   }
@@ -1074,7 +1074,12 @@
   });
 
   function render() {
-    var hosts = Object.keys(laptops).sort();
+    var hosts = Object.keys(laptops).sort(function (a, b) {
+      var aOnline = !!laptops[a].online;
+      var bOnline = !!laptops[b].online;
+      if (aOnline !== bOnline) return aOnline ? -1 : 1;
+      return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    });
     summaryEl.textContent = hosts.length + ' laptop' + (hosts.length === 1 ? '' : 's') +
       ' reporting, ' + hosts.filter(function (h) { return laptops[h].online; }).length + ' online';
 
