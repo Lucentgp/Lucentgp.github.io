@@ -997,12 +997,13 @@
            '<span class="v' + (cls ? ' ' + cls : '') + '">' + v + '</span></div>';
   }
 
-  function remoteRow(teamviewerId) {
-    if (!teamviewerId) {
+  function remoteRow(d) {
+    if (!d.teamviewer_id) {
       return '<div class="row"><span class="k">Remote In</span><span class="v" style="color:var(--paper-dim)">Not Available</span></div>';
     }
-    var href = 'https://start.teamviewer.com/' + encodeURIComponent(teamviewerId);
-    return '<div class="row"><span class="k">Remote In</span><span class="v">' +
+    var href = 'https://start.teamviewer.com/' + encodeURIComponent(d.teamviewer_id);
+    var label = d.teamviewer_alias || ('ID ' + d.teamviewer_id);
+    return '<div class="row"><span class="k">' + label + '</span><span class="v">' +
       '<a class="remote-link" href="' + href + '" target="_blank" rel="noopener noreferrer">Connect via TeamViewer</a>' +
       '</span></div>';
   }
@@ -1063,7 +1064,7 @@
           row('Restart Pending', d.update_available ? 'Yes' : 'No', d.update_available ? 'amber' : undefined) +
           row('Updates Paused', d.update_paused ? 'Yes' : 'No', d.update_paused ? 'red' : undefined) +
           '<div class="sec-title">Remote</div>' +
-          remoteRow(d.teamviewer_id) +
+          remoteRow(d) +
           '<div class="sec-title">Relay</div>' +
           row('Last Report', lastSeenText(d.lastSeen)) +
           '</div>' +
