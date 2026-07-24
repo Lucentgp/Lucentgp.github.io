@@ -259,6 +259,7 @@
   .badge.frg { color: var(--ok); border-color: var(--ok); }
   .badge.trans { color: var(--amber); border-color: var(--amber); }
   .badge.ls { color: var(--steel); border-color: var(--steel-dim); }
+  .badge.offline { color: var(--hazard); border-color: var(--hazard); }
   .card-head .expand-hint {
     flex-shrink: 0;
     width: 68px;
@@ -1189,9 +1190,12 @@
       var d = laptops[host] || {};
       var online = !!d.online;
       var expanded = !!expandedHosts[host];
-      var badge = labelBadge(d.label_state);
-      var fix = d.nmea_fix || 'No Data';
-      var fixCls = fix === 'Valid' ? 'green' : fix === 'No Fix' ? 'amber' : 'red';
+      // A stale cached label_state/nmea_fix from before the laptop went
+      // offline would otherwise still read "GPS FRG" / "Valid" as if it
+      // were current -- show it isn't instead of implying a live fix.
+      var badge = online ? labelBadge(d.label_state) : { text: 'OFFLINE', cls: 'offline' };
+      var fix = online ? (d.nmea_fix || 'No Data') : 'Unknown (Offline)';
+      var fixCls = !online ? 'red' : (fix === 'Valid' ? 'green' : fix === 'No Fix' ? 'amber' : 'red');
       var procCls = d.spoofer_running ? 'green' : 'red';
       var portCls = d.port_listening ? 'green' : 'red';
       var lat = (typeof d.latitude === 'number') ? d.latitude.toFixed(6) : 'n/a';
