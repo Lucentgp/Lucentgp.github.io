@@ -25,6 +25,9 @@
     --sign: 'Oswald', 'Arial Narrow', sans-serif;
   }
   * { box-sizing: border-box; }
+  a, button, input, textarea, .tab-btn, .remote-btn, .card-head, .modal-close, .clear-small {
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
   html {
     scrollbar-gutter: stable;
   }
@@ -73,8 +76,14 @@
   }
   .tab-btn:hover { border-color: var(--amber); color: var(--amber); }
   .tab-btn.active { background: var(--amber); border-color: var(--amber); color: #14161a; }
-  .tab-panel { display: none; }
+  .tab-panel {
+    display: none;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
   .tab-panel.active { display: block; }
+  .tab-panel.in { opacity: 1; transform: translateY(0); }
 
   /* ── Status / session strip (per-tab, shown once logged in) ── */
   .status-strip {
@@ -222,7 +231,7 @@
   .card-head { padding: 8px 12px; cursor: pointer; user-select: none; }
   .card-head:hover { background: rgba(255,255,255,0.02); }
   .card-head-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  .card-head .dot { width: 7px; height: 7px; background: var(--paper-dim); flex-shrink: 0; }
+  .card-head .dot { width: 7px; height: 7px; background: var(--paper-dim); flex-shrink: 0; transition: background-color 0.2s ease, box-shadow 0.2s ease; }
   .card.online .dot { background: var(--ok); box-shadow: 0 0 5px var(--ok); }
   .card.offline .dot { background: var(--hazard); }
   .card-head .host {
@@ -259,6 +268,9 @@
     text-transform: uppercase;
     color: var(--amber);
   }
+  .card-head .hint-expanded { display: none; }
+  .card.expanded .card-head .hint-collapsed { display: none; }
+  .card.expanded .card-head .hint-expanded { display: inline; }
   .card-summary {
     display: flex;
     flex-wrap: wrap;
@@ -310,6 +322,15 @@
     border: 1px solid var(--panel-line);
     box-shadow: 0 14px 28px rgba(0,0,0,0.6), 0 4px 10px rgba(0,0,0,0.45);
     z-index: 1;
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  .card.expanded .card-body {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
   }
   .row {
     display: flex;
@@ -574,7 +595,7 @@
   .charcount { text-align: right; font-size: 10.5px; color: #94978f; margin-top: 4px; }
 
   .modal-overlay {
-    display: none;
+    display: flex;
     position: fixed;
     inset: 0;
     background: rgba(10,11,13,0.72);
@@ -583,8 +604,17 @@
     justify-content: center;
     padding: 40px 20px;
     overflow-y: auto;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.2s ease, visibility 0s linear 0.2s;
   }
-  .modal-overlay.show { display: flex; }
+  .modal-overlay.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.2s ease, visibility 0s linear 0s;
+  }
   .modal-box {
     background: var(--asphalt-2);
     border: 1px solid var(--amber);
@@ -593,7 +623,10 @@
     max-height: 100%;
     display: flex;
     flex-direction: column;
+    transform: scale(0.96) translateY(-4px);
+    transition: transform 0.2s ease;
   }
+  .modal-overlay.show .modal-box { transform: scale(1) translateY(0); }
   .modal-head {
     display: flex;
     align-items: center;
@@ -642,7 +675,7 @@
   </header>
 
   <!-- ══════════════════ FLEET TAB ══════════════════ -->
-  <div class="tab-panel active" id="tab-fleet">
+  <div class="tab-panel active in" id="tab-fleet">
 
     <div id="login-fleet">
       <div class="panel">
@@ -848,12 +881,27 @@
   var tabFleet = document.getElementById('tab-fleet');
   var tabBroadcast = document.getElementById('tab-broadcast');
 
+  var TAB_FADE_MS = 200;
+
   function showTab(name) {
     var isFleet = name === 'fleet';
     navFleet.classList.toggle('active', isFleet);
     navBroadcast.classList.toggle('active', !isFleet);
-    tabFleet.style.display = isFleet ? 'block' : 'none';
-    tabBroadcast.style.display = isFleet ? 'none' : 'block';
+
+    var show = isFleet ? tabFleet : tabBroadcast;
+    var hide = isFleet ? tabBroadcast : tabFleet;
+
+    if (hide.classList.contains('active')) {
+      hide.classList.remove('in');
+      window.setTimeout(function () {
+        if (!hide.classList.contains('in')) hide.classList.remove('active');
+      }, TAB_FADE_MS);
+    }
+
+    show.classList.add('active');
+    void show.offsetWidth; // force reflow so the fade-in transition actually plays
+    show.classList.add('in');
+
     var url = new URL(window.location.href);
     url.searchParams.set('tab', name);
     window.history.replaceState(null, '', url);
@@ -1082,8 +1130,9 @@
     if (!head) return;
     var card = head.closest('.card');
     var host = card.getAttribute('data-host');
-    expandedHosts[host] = !expandedHosts[host];
-    render();
+    var next = !expandedHosts[host];
+    expandedHosts[host] = next;
+    card.classList.toggle('expanded', next);
   });
 
   function render() {
@@ -1133,7 +1182,7 @@
           '</div>'
         );
 
-      var body = !expanded ? '' : (
+      var body = (
           '<div class="card-body">' +
           row('Spoofer Process', d.spoofer_running ? ('Running, PID ' + d.spoofer_pid) : 'Stopped', procCls) +
           row('Port 12175', d.port_listening ? 'Listening' : 'Not Listening', portCls) +
@@ -1161,13 +1210,14 @@
         );
 
       return (
-        '<div class="card ' + (online ? 'online' : 'offline') + '" data-host="' + host + '">' +
+        '<div class="card ' + (online ? 'online' : 'offline') + (expanded ? ' expanded' : '') + '" data-host="' + host + '">' +
           '<div class="card-head">' +
             '<div class="card-head-top">' +
               '<span class="dot"></span>' +
               '<span class="host">' + displayName + '</span>' +
               '<span class="badge ' + badge.cls + '">' + badge.text + '</span>' +
-              '<span class="expand-hint">' + (expanded ? 'Hide ▾' : 'Details ▸') + '</span>' +
+              '<span class="expand-hint hint-collapsed">Details ▸</span>' +
+              '<span class="expand-hint hint-expanded">Hide ▾</span>' +
             '</div>' +
             summaryLine +
             remoteButton(d) +
