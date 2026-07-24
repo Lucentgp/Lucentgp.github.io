@@ -15,6 +15,7 @@
     --panel-line:  #4a505a;
     --amber:       #4f9fe0;
     --amber-dim:   #3a7ab8;
+    --gps-warn:    #e0a83c;
     --steel:       #a8c8db;
     --steel-dim:   #4a6575;
     --paper:       #f2f2ee;
@@ -257,7 +258,7 @@
     color: var(--paper-dim);
   }
   .badge.frg { color: var(--ok); border-color: var(--ok); }
-  .badge.trans { color: var(--amber); border-color: var(--amber); }
+  .badge.trans { color: var(--gps-warn); border-color: var(--gps-warn); }
   .badge.ls { color: var(--steel); border-color: var(--steel-dim); }
   .badge.offline { color: var(--hazard); border-color: var(--hazard); }
   .card-head .expand-hint {
@@ -283,7 +284,7 @@
     color: var(--paper-dim);
   }
   .card-summary .green { color: var(--ok); }
-  .card-summary .amber { color: var(--amber); }
+  .card-summary .amber { color: var(--gps-warn); }
   .card-summary .red { color: var(--hazard); font-weight: 700; }
   .card-warnings {
     display: flex;
@@ -293,7 +294,7 @@
     font-size: 10.5px;
     min-height: 14px;
   }
-  .card-warnings .amber { color: var(--amber); }
+  .card-warnings .amber { color: var(--gps-warn); }
   .card-warnings .red { color: var(--hazard); font-weight: 700; }
 
   .remote-btn {
@@ -357,7 +358,7 @@
   .row .v { text-align: right; }
   .v.green { color: var(--ok); }
   .v.red { color: var(--hazard); }
-  .v.amber { color: var(--amber); }
+  .v.amber { color: var(--gps-warn); }
   .v a.remote-link { color: var(--amber); font-weight: 700; text-decoration: none; }
   .v a.remote-link:hover { text-decoration: underline; }
   .sec-title {
