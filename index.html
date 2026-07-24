@@ -247,7 +247,26 @@
   .badge.frg { color: var(--ok); border-color: var(--ok); }
   .badge.trans { color: var(--amber); border-color: var(--amber); }
   .badge.ls { color: var(--steel); border-color: var(--steel-dim); }
-  .card-head .chevron { flex-shrink: 0; color: var(--paper-dim); font-size: 10px; }
+  .card-head .expand-hint {
+    flex-shrink: 0;
+    font-family: var(--sign);
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--amber);
+  }
+  .card-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    margin-top: 6px;
+    font-size: 10.5px;
+    color: var(--paper-dim);
+  }
+  .card-summary .green { color: var(--ok); }
+  .card-summary .amber { color: var(--amber); }
+  .card-summary .red { color: var(--hazard); font-weight: 700; }
 
   .remote-btn {
     display: block;
@@ -1083,6 +1102,20 @@
       var hdop = (typeof d.hdop === 'number') ? d.hdop.toFixed(1) : 'n/a';
       var displayName = d.teamviewer_alias || host;
 
+      var warnFlags = '';
+      if (d.update_available) warnFlags += '<span class="amber">Restart Pending</span>';
+      if (d.update_paused) warnFlags += '<span class="red">Updates Paused</span>';
+
+      var summaryLine = expanded ? '' : (
+          '<div class="card-summary">' +
+            '<span class="' + fixCls + '">Fix: ' + fix + '</span>' +
+            '<span>Sats: ' + (d.satellites != null ? d.satellites : 0) + '</span>' +
+            '<span>Speed: ' + spd + '</span>' +
+            '<span>' + (d.spoofer_running ? 'Spoofer OK' : 'Spoofer Stopped') + '</span>' +
+            warnFlags +
+          '</div>'
+        );
+
       var body = !expanded ? '' : (
           '<div class="card-body">' +
           row('Spoofer Process', d.spoofer_running ? ('Running, PID ' + d.spoofer_pid) : 'Stopped', procCls) +
@@ -1117,8 +1150,9 @@
               '<span class="dot"></span>' +
               '<span class="host">' + displayName + '</span>' +
               '<span class="badge ' + badge.cls + '">' + badge.text + '</span>' +
-              '<span class="chevron">' + (expanded ? '▾' : '▸') + '</span>' +
+              '<span class="expand-hint">' + (expanded ? 'Hide ▾' : 'Details ▸') + '</span>' +
             '</div>' +
+            summaryLine +
             remoteButton(d) +
           '</div>' +
           body +
