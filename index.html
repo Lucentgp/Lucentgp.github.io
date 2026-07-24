@@ -881,7 +881,13 @@
   var tabFleet = document.getElementById('tab-fleet');
   var tabBroadcast = document.getElementById('tab-broadcast');
 
-  var TAB_FADE_MS = 200;
+  var TAB_FADE_MS = 160;
+
+  function activateTab(show) {
+    show.classList.add('active');
+    void show.offsetWidth; // force reflow so the fade-in transition actually plays
+    show.classList.add('in');
+  }
 
   function showTab(name) {
     var isFleet = name === 'fleet';
@@ -891,16 +897,17 @@
     var show = isFleet ? tabFleet : tabBroadcast;
     var hide = isFleet ? tabBroadcast : tabFleet;
 
-    if (hide.classList.contains('active')) {
+    if (hide.classList.contains('in')) {
+      // Fade the old tab all the way out before the new one enters the
+      // flow, so the two panels never both take up layout space at once.
       hide.classList.remove('in');
       window.setTimeout(function () {
-        if (!hide.classList.contains('in')) hide.classList.remove('active');
+        hide.classList.remove('active');
+        activateTab(show);
       }, TAB_FADE_MS);
+    } else {
+      activateTab(show);
     }
-
-    show.classList.add('active');
-    void show.offsetWidth; // force reflow so the fade-in transition actually plays
-    show.classList.add('in');
 
     var url = new URL(window.location.href);
     url.searchParams.set('tab', name);
@@ -1059,7 +1066,7 @@
       } else if (msg.type === 'update') {
         laptops[msg.hostname] = msg.data;
       }
-      render();
+      scheduleRender();
     };
   }
 
@@ -1123,6 +1130,24 @@
   }
 
   var expandedHosts = {}; // hostname -> bool, default falsy = collapsed
+
+  // Rebuilding the grid's innerHTML while the mouse is resting on a card
+  // destroys and recreates the hovered DOM node, which drops and instantly
+  // reapplies :hover and flickers the highlight. Defer refreshes started
+  // while hovering until the mouse actually leaves the grid.
+  var gridHovered = false;
+  var renderPending = false;
+
+  gridEl.addEventListener('mouseenter', function () { gridHovered = true; });
+  gridEl.addEventListener('mouseleave', function () {
+    gridHovered = false;
+    if (renderPending) { renderPending = false; render(); }
+  });
+
+  function scheduleRender() {
+    if (gridHovered) { renderPending = true; return; }
+    render();
+  }
 
   gridEl.addEventListener('click', function (e) {
     if (e.target.closest('.remote-btn')) return; // let the link/button act normally
@@ -1228,7 +1253,7 @@
     }).join('');
   }
 
-  setInterval(render, 5000);
+  setInterval(scheduleRender, 5000);
 
   if (urlInput.value && tokenInput.value) {
     enterDashboard(urlInput.value, tokenInput.value);
