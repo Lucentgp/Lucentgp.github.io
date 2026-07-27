@@ -984,6 +984,21 @@
   var urlInput = document.getElementById('relay-url');
   var tokenInput = document.getElementById('relay-token');
   var nameInput = document.getElementById('viewer-name');
+
+  // One-time forced re-login: bump FORCE_RELOGIN_VERSION any time everyone
+  // needs to be kicked back to the login form (e.g. adding the required
+  // name field). Anyone whose browser hasn't seen this version yet gets
+  // their cached session wiped before the auto-reconnect check below runs,
+  // so they land on the login form instead of silently resuming. After
+  // that, the version is stamped and they're left alone.
+  var FORCE_RELOGIN_VERSION = '2025-07-28-name-required';
+  if (localStorage.getItem('relogin_version') !== FORCE_RELOGIN_VERSION) {
+    localStorage.removeItem('gps_relay_url');
+    localStorage.removeItem('gps_relay_token');
+    localStorage.removeItem('dashboard_viewer_name');
+    localStorage.setItem('relogin_version', FORCE_RELOGIN_VERSION);
+  }
+
   urlInput.value = localStorage.getItem('gps_relay_url') || '';
   tokenInput.value = localStorage.getItem('gps_relay_token') || '';
   nameInput.value = localStorage.getItem('dashboard_viewer_name') || '';
@@ -1098,7 +1113,7 @@
     if (name) localStorage.setItem('dashboard_viewer_name', name);
     var sep = url.indexOf('?') === -1 ? '?' : '&';
     var full = url + sep + 'token=' + encodeURIComponent(token) +
-      '&name=' + encodeURIComponent(name || 'Anonymous');
+      '&name=' + encodeURIComponent(name);
     ws = new WebSocket(full);
 
     ws.onopen = function () {
@@ -1415,7 +1430,7 @@
 
   setInterval(scheduleRender, 5000);
 
-  if (urlInput.value && tokenInput.value) {
+  if (urlInput.value && tokenInput.value && nameInput.value.trim()) {
     enterDashboard(urlInput.value, tokenInput.value);
   }
 })();
