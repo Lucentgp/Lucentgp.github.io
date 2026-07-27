@@ -355,6 +355,7 @@
   }
   .row:last-child { border-bottom: none; }
   .row .k { color: var(--paper-dim); }
+  .row .k .green { color: var(--ok); }
   .row .v { text-align: right; }
   .v.green { color: var(--ok); }
   .v.red { color: var(--hazard); }
@@ -1242,7 +1243,7 @@
           row('NMEA Fix', fix, fixCls) +
           row('Satellites', d.satellites != null ? d.satellites : 0) +
           row('Last NMEA', fmtTs(d.last_nmea_ts)) +
-          row('Last Time FRG', d.last_frg_at ? relativeFromIso(d.last_frg_at) : 'Never') +
+          row('Last Time <span class="green">FRG</span>', d.last_frg_at ? relativeFromIso(d.last_frg_at) : 'Never') +
           '<div class="sec-title">Position</div>' +
           row('Latitude', lat) +
           row('Longitude', lon) +
