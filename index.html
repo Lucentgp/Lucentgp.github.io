@@ -1120,9 +1120,9 @@
 
   function fmtVersion(v) {
     if (!v || v.length !== 14) return v || 'n/a';
-    var y = v.slice(0, 4), mo = v.slice(4, 6), d = v.slice(6, 8);
+    var mo = v.slice(4, 6), d = v.slice(6, 8);
     var h = v.slice(8, 10), mi = v.slice(10, 12);
-    return y + '-' + mo + '-' + d + ' ' + h + ':' + mi;
+    return mo + '-' + d + ' ' + h + ':' + mi;
   }
 
   function labelBadge(label) {
