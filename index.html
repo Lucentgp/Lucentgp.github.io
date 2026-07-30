@@ -154,6 +154,10 @@
     color: var(--paper-dim);
   }
   #summary .stat.online .stat-num { color: var(--ok); }
+  #summary .stat.offline .stat-num { color: var(--hazard); }
+  #summary .stat.frg .stat-num { color: var(--ok); }
+  #summary .stat.trans .stat-num { color: var(--gps-warn); }
+  #summary .stat.ls .stat-num { color: var(--steel); }
   .status-strip button {
     background: transparent;
     border: 1px solid var(--panel-line);
@@ -1382,12 +1386,28 @@
       }
       return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
     });
-    var onlineCount = hosts.filter(function (h) { return laptops[h].online; }).length;
+    var onlineCount = 0, offlineCount = 0, frgCount = 0, lsfrgCount = 0, lsCount = 0;
+    hosts.forEach(function (h) {
+      var d = laptops[h];
+      if (!d.online) { offlineCount++; return; }
+      onlineCount++;
+      var rank = labelRank(d.label_state);
+      if (rank === 0) frgCount++;
+      else if (rank === 1) lsfrgCount++;
+      else lsCount++;
+    });
+    function stat(cls, num, label) {
+      return '<span class="stat ' + cls + '"><span class="stat-num">' + num + '</span>' +
+             '<span class="stat-label">' + label + '</span></span>';
+    }
     summaryEl.innerHTML =
-      '<span class="stat"><span class="stat-num">' + hosts.length + '</span>' +
-      '<span class="stat-label">reporting</span></span>' +
-      '<span class="stat online"><span class="stat-num">' + onlineCount + '</span>' +
-      '<span class="stat-label">online</span></span>';
+      stat('', hosts.length, 'reporting') +
+      stat('online', onlineCount, 'online') +
+      stat('offline', offlineCount, 'offline') +
+      '<span class="stat-divider"></span>' +
+      stat('frg', frgCount, 'frg') +
+      stat('trans', lsfrgCount, 'lsfrg') +
+      stat('ls', lsCount, 'ls');
 
     if (hosts.length === 0) {
       gridEl.innerHTML = '';
