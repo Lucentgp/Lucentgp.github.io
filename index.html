@@ -143,8 +143,8 @@
   #summary .stat { display: flex; align-items: baseline; gap: 5px; }
   #summary .stat-num {
     font-family: var(--sign);
-    font-weight: 700;
-    font-size: 13px;
+    font-weight: 500;
+    font-size: 15px;
     color: var(--paper);
   }
   #summary .stat-label {
@@ -1406,7 +1406,7 @@
       stat('offline', offlineCount, 'offline') +
       '<span class="stat-divider"></span>' +
       stat('frg', frgCount, 'frg') +
-      stat('trans', lsfrgCount, 'lsfrg') +
+      stat('trans', lsfrgCount, 'ls (frg)') +
       stat('ls', lsCount, 'ls');
 
     if (hosts.length === 0) {
