@@ -111,6 +111,7 @@
     box-shadow: 0 0 5px var(--ok);
   }
   .status-strip .right { display: flex; align-items: center; gap: 14px; }
+  .status-strip .left { display: flex; align-items: center; gap: 12px; }
   #conn-state {
     font-family: var(--sign);
     font-size: 10px;
@@ -120,9 +121,39 @@
     padding: 3px 8px;
     border: 1px solid var(--panel-line);
     color: var(--paper-dim);
+    position: relative;
   }
-  #conn-state.ok { color: var(--ok); border-color: var(--ok); }
+  #conn-state.ok { color: var(--ok); border-color: var(--ok); padding-left: 17px; }
+  #conn-state.ok::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--ok);
+    box-shadow: 0 0 5px var(--ok);
+    animation: pulse-dot 1.8s ease-in-out infinite;
+  }
   #conn-state.bad { color: var(--hazard); border-color: var(--hazard); }
+  @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .stat-divider { width: 1px; height: 14px; background: var(--panel-line); }
+  #summary { display: flex; align-items: center; gap: 16px; }
+  #summary .stat { display: flex; align-items: baseline; gap: 5px; }
+  #summary .stat-num {
+    font-family: var(--sign);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--paper);
+  }
+  #summary .stat-label {
+    font-size: 10px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: var(--paper-dim);
+  }
+  #summary .stat.online .stat-num { color: var(--ok); }
   .status-strip button {
     background: transparent;
     border: 1px solid var(--panel-line);
@@ -731,7 +762,7 @@
     </div>
 
     <div class="status-strip" id="fleet-status" style="display:none">
-      <span><span id="conn-state">Connecting</span> &nbsp; <span id="summary"></span></span>
+      <span class="left"><span id="conn-state">Connecting</span><span class="stat-divider"></span><span id="summary"></span></span>
       <div class="right">
         <button id="viewers-history-btn" type="button">Login History</button>
         <button id="logout-btn-fleet" type="button">Log Out</button>
@@ -1351,8 +1382,12 @@
       }
       return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
     });
-    summaryEl.textContent = hosts.length + ' laptop' + (hosts.length === 1 ? '' : 's') +
-      ' reporting, ' + hosts.filter(function (h) { return laptops[h].online; }).length + ' online';
+    var onlineCount = hosts.filter(function (h) { return laptops[h].online; }).length;
+    summaryEl.innerHTML =
+      '<span class="stat"><span class="stat-num">' + hosts.length + '</span>' +
+      '<span class="stat-label">reporting</span></span>' +
+      '<span class="stat online"><span class="stat-num">' + onlineCount + '</span>' +
+      '<span class="stat-label">online</span></span>';
 
     if (hosts.length === 0) {
       gridEl.innerHTML = '';
