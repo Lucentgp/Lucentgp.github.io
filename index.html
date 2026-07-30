@@ -1278,6 +1278,14 @@
     return { text: label || 'LS', cls: 'ls' };
   }
 
+  // Same three buckets as labelBadge, in FRG / LSFRG / LS display order,
+  // so online cards group by GPS state instead of just hostname.
+  function labelRank(label) {
+    if (label === 'FrG') return 0;
+    if (label && label.indexOf('FrG') !== -1) return 1;
+    return 2;
+  }
+
   function row(k, v, cls) {
     return '<div class="row"><span class="k">' + k + '</span>' +
            '<span class="v' + (cls ? ' ' + cls : '') + '">' + v + '</span></div>';
@@ -1336,6 +1344,11 @@
       var aOnline = !!laptops[a].online;
       var bOnline = !!laptops[b].online;
       if (aOnline !== bOnline) return aOnline ? -1 : 1;
+      if (aOnline) {
+        var aRank = labelRank(laptops[a].label_state);
+        var bRank = labelRank(laptops[b].label_state);
+        if (aRank !== bRank) return aRank - bRank;
+      }
       return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
     });
     summaryEl.textContent = hosts.length + ' laptop' + (hosts.length === 1 ? '' : 's') +
