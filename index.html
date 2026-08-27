@@ -1254,7 +1254,26 @@
       var msg;
       try { msg = JSON.parse(evt.data); } catch (e) { return; }
       if (msg.type === 'snapshot') {
-        laptops = msg.data || {};
+        // Merge, don't replace -- the relay pushes this full snapshot
+        // every SNAPSHOT_PUSH_INTERVAL_MS (10s) regardless of whether
+        // anything changed, and it never contains a laptop that's fully
+        // cut over to Firebase (relay doesn't know about it anymore). A
+        // wholesale `laptops = msg.data` here wiped out any Firebase-
+        // merged entry every ~10s, only for the next Firebase poll tick
+        // (pollFirebaseLaptops, ~15s) to add it back -- a laptop that had
+        // fully cut over would visibly flicker in and out of the grid.
+        // Relay data still wins for every host IT reports (it's the live
+        // authority for those); a host missing from the relay's snapshot
+        // but currently Firebase-sourced is left alone instead of erased.
+        var relayHosts = msg.data || {};
+        var merged = {};
+        for (var keptHost in laptops) {
+          if (laptops[keptHost] && laptops[keptHost]._fromFirebase) merged[keptHost] = laptops[keptHost];
+        }
+        for (var relayHost in relayHosts) {
+          merged[relayHost] = relayHosts[relayHost];
+        }
+        laptops = merged;
       } else if (msg.type === 'update') {
         laptops[msg.hostname] = msg.data;
       } else if (msg.type === 'viewers') {
