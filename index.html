@@ -776,17 +776,6 @@
     <div id="fleet-main">
       <div id="grid"></div>
       <div id="empty" style="display:none">No laptops have reported yet.</div>
-
-      <!-- ══ FIREBASE CANARY (2026-08-27) — isolated, read-only panel for
-           HW538212 only, sourced from Firestore instead of the relay
-           WebSocket above. Does not read/write the `laptops` object or
-           touch scheduleRender()/renderLaptop() at all -- if Firestore is
-           unreachable or the doc doesn't exist yet, this panel just shows
-           its own error text, nothing else on the page is affected. ══ -->
-      <div id="firebase-canary-panel" style="margin-top:24px;padding:12px;border:1px dashed #666;border-radius:6px;display:none">
-        <div style="font-weight:600;margin-bottom:6px">Firebase canary (HW538212) — evaluating as Render relay replacement</div>
-        <div id="firebase-canary-body" style="font-family:monospace;font-size:13px;white-space:pre-wrap"></div>
-      </div>
     </div>
 
   </div>
@@ -1079,68 +1068,94 @@
     statusStrip.style.display = 'flex';
     mainEl.style.display = 'block';
     connect(url, token);
-    startFirebaseCanaryPoll();
+    startFirebaseLaptopsPoll();
   }
 
-  // ── FIREBASE CANARY (2026-08-27) ──
-  // Read-only, unauthenticated GET against Firestore's REST API (public
-  // read is intentional -- see firestore rules, data here is non-
-  // sensitive: hostname, version strings, timestamps). Independent poll
-  // loop, does not touch `laptops`, `ws`, or any relay state. Any error
-  // (network, 404 because the laptop hasn't reported yet, malformed
-  // response) is caught and shown as text in the panel -- never thrown,
-  // never affects the rest of the dashboard.
+  // ── FIREBASE MERGE-IN (2026-08-27) ──
+  // Polls the whole `laptops` Firestore collection and merges each doc
+  // straight into the same `laptops` object the relay WebSocket above
+  // populates, keyed by hostname exactly like the relay's 'update'
+  // messages. This is the real swap-in, not a side panel: any hostname
+  // present in Firestore shows up as a normal card via the existing
+  // render()/renderLaptop() -- no separate rendering path.
+  //
+  // Precedence when a hostname has BOTH a relay entry and a Firestore
+  // entry (true during any partial migration): whichever has the more
+  // recent `lastSeen` wins, per-laptop, on every poll tick. This needs no
+  // knowledge of which laptops are on which system and degrades safely --
+  // a laptop never reporting to Firestore simply never has a Firestore
+  // `lastSeen` to win the comparison, so it stays on relay data exactly
+  // as before.
+  //
+  // `online` has no Firestore equivalent (no live connection to check),
+  // so it's derived the same way the relay itself derives it server-side
+  // (see server.js's snapshot(): now - lastSeen < OFFLINE_AFTER_MS).
   var FIRESTORE_PROJECT_ID = 'ranger-dashboard-8ba85';
-  var FIREBASE_CANARY_HOSTNAME = 'HW538212';
-  var firebaseCanaryTimer = null;
+  var FIREBASE_OFFLINE_AFTER_MS = 45000; // matches relay's OFFLINE_AFTER_MS
+  var firebaseLaptopsTimer = null;
 
-  function firestoreValue(fields, key) {
-    var f = fields && fields[key];
-    if (!f) return null;
-    if ('stringValue' in f) return f.stringValue;
-    if ('booleanValue' in f) return f.booleanValue;
-    return null;
+  function firestoreDocToObject(fields) {
+    var obj = {};
+    for (var k in fields) {
+      if (!Object.prototype.hasOwnProperty.call(fields, k)) continue;
+      var f = fields[k];
+      if ('stringValue' in f) obj[k] = f.stringValue;
+      else if ('booleanValue' in f) obj[k] = f.booleanValue;
+      else if ('integerValue' in f) obj[k] = parseInt(f.integerValue, 10);
+      else if ('doubleValue' in f) obj[k] = f.doubleValue;
+      else if ('nullValue' in f) obj[k] = null;
+    }
+    return obj;
   }
 
-  function pollFirebaseCanary() {
-    var panel = document.getElementById('firebase-canary-panel');
-    var body = document.getElementById('firebase-canary-body');
-    panel.style.display = 'block';
+  function pollFirebaseLaptops() {
     var url = 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT_ID +
-      '/databases/(default)/documents/laptops/' + FIREBASE_CANARY_HOSTNAME;
+      '/databases/(default)/documents/laptops';
     fetch(url)
       .then(function (res) {
-        if (res.status === 404) throw new Error('No document yet — laptop has not reported to Firestore.');
-        if (!res.ok) throw new Error('Firestore returned HTTP ' + res.status);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         return res.json();
       })
-      .then(function (doc) {
-        var f = doc.fields || {};
-        var lines = [
-          'hostname: ' + (firestoreValue(f, 'hostname') || '(none)'),
-          'kiosk_version: ' + (firestoreValue(f, 'kiosk_version') || '(none)'),
-          'fleet_version: ' + (firestoreValue(f, 'fleet_version') || '(none)'),
-          'last_update_check: ' + (firestoreValue(f, 'last_update_check') || '(none)'),
-          'last_boot: ' + (firestoreValue(f, 'last_boot') || '(none)'),
-          'update_available: ' + firestoreValue(f, 'update_available'),
-          'update_paused: ' + firestoreValue(f, 'update_paused'),
-        ];
-        body.textContent = lines.join('\n');
+      .then(function (data) {
+        var docs = data.documents || [];
+        var changed = false;
+        docs.forEach(function (doc) {
+          var marker = '/laptops/';
+          var idx = doc.name.indexOf(marker);
+          if (idx === -1) return;
+          var hostname = doc.name.slice(idx + marker.length);
+          if (!hostname) return;
+          var obj = firestoreDocToObject(doc.fields || {});
+          delete obj.secret; // write-gate field, never render it
+          var fbLastSeen = obj.lastSeen || 0;
+          var existing = laptops[hostname];
+          // Relay entries are only ever fresher than what's already in
+          // `laptops` if they came from a WS 'update'/'snapshot' message,
+          // not from a previous Firebase merge -- track that explicitly
+          // rather than trying to infer it, so this comparison stays
+          // correct across repeated poll ticks.
+          var existingLastSeen = (existing && !existing._fromFirebase) ? (existing.lastSeen || 0) : (existing && existing.lastSeen) || 0;
+          if (existing && !existing._fromFirebase && existingLastSeen >= fbLastSeen) return; // relay data wins, leave as-is
+          obj.online = (Date.now() - fbLastSeen) < FIREBASE_OFFLINE_AFTER_MS;
+          obj._fromFirebase = true;
+          laptops[hostname] = obj;
+          changed = true;
+        });
+        if (changed) scheduleRender();
       })
       .catch(function (e) {
-        body.textContent = 'Firebase canary: ' + e.message;
+        console.warn('Firebase laptops poll failed:', e.message);
       });
   }
 
-  function startFirebaseCanaryPoll() {
-    pollFirebaseCanary();
-    if (firebaseCanaryTimer) clearInterval(firebaseCanaryTimer);
-    firebaseCanaryTimer = setInterval(pollFirebaseCanary, 30000);
+  function startFirebaseLaptopsPoll() {
+    pollFirebaseLaptops();
+    if (firebaseLaptopsTimer) clearInterval(firebaseLaptopsTimer);
+    firebaseLaptopsTimer = setInterval(pollFirebaseLaptops, 15000);
   }
 
-  function stopFirebaseCanaryPoll() {
-    if (firebaseCanaryTimer) { clearInterval(firebaseCanaryTimer); firebaseCanaryTimer = null; }
-    document.getElementById('firebase-canary-panel').style.display = 'none';
+  function stopFirebaseLaptopsPoll() {
+    if (firebaseLaptopsTimer) { clearInterval(firebaseLaptopsTimer); firebaseLaptopsTimer = null; }
   }
 
   logoutBtn.addEventListener('click', function () {
@@ -1154,7 +1169,7 @@
     loginErrEl.className = 'log err';
     statusStrip.style.display = 'none';
     mainEl.style.display = 'none';
-    stopFirebaseCanaryPoll();
+    stopFirebaseLaptopsPoll();
     loginEl.style.display = 'block';
   });
 
