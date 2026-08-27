@@ -1069,6 +1069,7 @@
     mainEl.style.display = 'block';
     connect(url, token);
     startFirebaseLaptopsPoll();
+    startTeamViewerDevicesPoll();
   }
 
   // ── FIREBASE MERGE-IN (2026-08-27) ──
@@ -1108,6 +1109,58 @@
     return obj;
   }
 
+  // ── TeamViewer devices, for Firebase-sourced laptops (2026-08-27) ──
+  // Relay-sourced entries already get teamviewer_id/_alias/_online merged
+  // in server-side (server.js's lookupTeamViewer()). A laptop that's cut
+  // over to Firebase has no such merge, so this replicates the exact same
+  // hostname-prefix match client-side against the device list the relay
+  // now also publishes to meta/teamviewer_devices (see server.js). Its
+  // own refresh is every 5min server-side, so polling this every 60s is
+  // plenty -- no need to match the 15s laptops-collection cadence.
+  var tvDevicesCache = [];
+  var tvDevicesTimer = null;
+
+  function lookupTeamViewerClient(hostname) {
+    var upper = String(hostname || '').toUpperCase();
+    if (!upper) return null;
+    var match = tvDevicesCache.find(function (d) {
+      return String(d.alias || '').toUpperCase().indexOf(upper) === 0;
+    });
+    if (!match) return null;
+    return {
+      teamviewer_id: match.teamviewer_id || null,
+      teamviewer_alias: match.alias || null,
+      teamviewer_online: match.online_state || null,
+    };
+  }
+
+  function pollTeamViewerDevices() {
+    var url = 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT_ID +
+      '/databases/(default)/documents/meta/teamviewer_devices';
+    fetch(url)
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (doc) {
+        var raw = doc.fields && doc.fields.devices && doc.fields.devices.stringValue;
+        tvDevicesCache = raw ? JSON.parse(raw) : [];
+      })
+      .catch(function (e) {
+        console.warn('TeamViewer devices poll failed:', e.message);
+      });
+  }
+
+  function startTeamViewerDevicesPoll() {
+    pollTeamViewerDevices();
+    if (tvDevicesTimer) clearInterval(tvDevicesTimer);
+    tvDevicesTimer = setInterval(pollTeamViewerDevices, 60000);
+  }
+
+  function stopTeamViewerDevicesPoll() {
+    if (tvDevicesTimer) { clearInterval(tvDevicesTimer); tvDevicesTimer = null; }
+  }
+
   function pollFirebaseLaptops() {
     var url = 'https://firestore.googleapis.com/v1/projects/' + FIRESTORE_PROJECT_ID +
       '/databases/(default)/documents/laptops';
@@ -1138,6 +1191,14 @@
           if (existing && !existing._fromFirebase && existingLastSeen >= fbLastSeen) return; // relay data wins, leave as-is
           obj.online = (Date.now() - fbLastSeen) < FIREBASE_OFFLINE_AFTER_MS;
           obj._fromFirebase = true;
+          if (!obj.teamviewer_id) {
+            var tv = lookupTeamViewerClient(hostname);
+            if (tv) {
+              obj.teamviewer_id = tv.teamviewer_id;
+              obj.teamviewer_alias = tv.teamviewer_alias;
+              obj.teamviewer_online = tv.teamviewer_online;
+            }
+          }
           laptops[hostname] = obj;
           changed = true;
         });
@@ -1170,6 +1231,7 @@
     statusStrip.style.display = 'none';
     mainEl.style.display = 'none';
     stopFirebaseLaptopsPoll();
+    stopTeamViewerDevicesPoll();
     loginEl.style.display = 'block';
   });
 
